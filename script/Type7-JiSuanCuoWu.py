@@ -78,6 +78,9 @@ if __name__ == "__main__":
         errs = ['元', '分钟', '个', '小时']
         for filename, doc in docx_files_dict_processed.items():
             print(f'处理文档：{filename}')
+            if filename.startswith('平安'):
+                print(f'跳过')
+                continue
             for i, sentence in enumerate(doc):
                 found_keyword = False
                 for j, err in enumerate(errs):

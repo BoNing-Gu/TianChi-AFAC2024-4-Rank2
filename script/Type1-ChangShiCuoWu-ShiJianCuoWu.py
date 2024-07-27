@@ -80,6 +80,9 @@ if __name__ == "__main__":
         errs = ['年', '月', '日', '上午', '下午', '日期']
         for filename, doc in docx_files_dict_processed.items():
             print(f'处理文档：{filename}')
+            if filename.startswith('平安'):
+                print(f'跳过')
+                continue
             for i, sentence in enumerate(doc):
                 if i == 0:  # 跳过基本年份信息
                     continue

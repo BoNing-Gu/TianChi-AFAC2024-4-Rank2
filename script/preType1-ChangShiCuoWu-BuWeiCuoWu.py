@@ -80,6 +80,9 @@ if __name__ == "__main__":
                          '未被', '被', '不具备', '具备', '不免除', '合理', '不合理', '经过', '有权', '无权', '不存在']
         for filename, doc in docx_files_dict_processed.items():
             print(f'处理文档：{filename}')
+            if filename.startswith('平安'):
+                print(f'跳过')
+                continue
             for i, sentence in enumerate(doc):
                 found_keyword = False
                 sentence_list = jieba.lcut(sentence)
@@ -90,20 +93,20 @@ if __name__ == "__main__":
                             possible_error_sent = sentence
                             print(f'原句：{possible_error_sent}')
                             prompt = (
-                                    f"这段文本来自研报、招标书或法律条文。我需要你帮助我识别句子中可能存在的逻辑词使用错误。请综合以下信息，逐步分析，并提供相关知识、事实依据和推理逻辑，帮助我判断句子是否有逻辑错误。" +
+                                    f"这段文本来自研报、招标书或法律条文。我需要你帮助我识别句子中可能存在的逻辑词使用错误。请综合以下信息，逐步分析，帮助我判断句子是否有逻辑错误。" +
                                     f"句子：{possible_error_sent}\n" +
-                                    f"可能出错的逻辑词：{err}\n" +
-                                    f"请从逻辑词的使用角度分析句子，指出可能的错误，并解释你的判断依据。"
+                                    f"考虑原句所用的逻辑词和其反义词相比哪个更加恰当：{err}和{errs_antonymy[k]}\n" +
+                                    f"请从逻辑词的使用角度分析句子，指出原句所用的逻辑词和反义词哪个更加恰当，并简要解释你进行判断所依据的知识。"
                             )
                             messages = [
-                                {"role": "system", "content": "作为识别金融文本漏洞和矛盾的专家，你的任务是帮助判断句子中的逻辑词是否正确。请提供相关知识、事实依据和推理逻辑。"},
+                                {"role": "system", "content": "作为识别金融文本漏洞和矛盾的专家，你的任务是帮助判断句子中的逻辑词与其反义词相比是否使用恰当。请提供相关知识和推理逻辑。"},
                                 {"role": "user", "content": prompt}
                             ]
                             response = client.chat.completions.create(
                                 model=args.model,
                                 messages=messages,
                                 stream=False,
-                                max_tokens=1024,
+                                max_tokens=256,
                                 temperature=args.temp
                             )
                             # print(response.choices[0].message.content)

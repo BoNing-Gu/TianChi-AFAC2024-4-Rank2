@@ -83,9 +83,10 @@ if __name__ == "__main__":
 
         # 抓取语句重复
         for filename, doc in docx_files_dict_processed.items():
-            if filename.startswith('平安'):
-                continue
             print(f'处理文档：{filename}')
+            if filename.startswith('平安'):
+                print(f'跳过')
+                continue
             for i, sentence in enumerate(doc):
                 if i < 6:
                     continue

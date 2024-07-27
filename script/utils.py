@@ -61,7 +61,16 @@ def process_docx_files_2_sents(docx_files_dict):
             all_para.append(para.text)
         docx_files_dict_processed_1[filename] = ''.join(all_para)
 
-    s_list = [r'^\d）', r'^（\d）', r'^\d\.', r'^\d\.\d']
+    s_list = [
+        r'^（\d）',  # 句子开头：（1）
+        r'^\d）',  # 句子开头：1）
+        r'^\d\.\d',  # 句子开头：1.1
+        r'^\d\.',  # 句子开头：1.
+        r'（\d）$',  # 句子末尾：（1）
+        r'\d）$',  # 句子末尾：1）
+        r'\d\.\d$'  # 句子末尾：1.1
+        r'\d\.$',  # 句子末尾：1.
+    ]
     compiled_patterns = [re.compile(pattern) for pattern in s_list]
 
     for filename, doc in docx_files_dict_processed_1.items():
@@ -73,7 +82,7 @@ def process_docx_files_2_sents(docx_files_dict):
         while i < len(para_2_sentences):
             sentence = para_2_sentences[i]
             # 跳过超短句
-            if len(sentence.strip()) < 3:
+            if len(sentence.strip()) <= 3:
                 i += 1
                 continue
             # 检查并删除模式
