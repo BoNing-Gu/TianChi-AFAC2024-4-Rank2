@@ -1,7 +1,8 @@
 from modelscope import snapshot_download
 
 model_dir = snapshot_download(
-    'ZhipuAI/glm-4-9b-chat',
+    'TongyiFinance/Tongyi-Finance-14B-Chat-Int4',
+    # 'TongyiFinance/Tongyi-Finance-14B-Chat',
     cache_dir='/hy-tmp/model_cache/',
     revision='master')
 

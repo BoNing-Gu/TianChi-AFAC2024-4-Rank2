@@ -88,7 +88,7 @@ if __name__ == "__main__":
                     for k, err in enumerate(errs):
                         if err == word:
                             found_keyword = True
-                            possible_error_sent = sentence
+                            possible_error_sent = sentence.replace(" ", "").replace(" ", "").replace("　", "")
                             print(f'原句：{possible_error_sent}')
                             temp_list = sentence_list[:]
                             temp_list[j] = errs_antonymy[k]
@@ -97,23 +97,24 @@ if __name__ == "__main__":
 
                             # 提取上下文
                             context_upper, context_lower = extract_context(i, doc, char_num)
+                            check_sentence = (context_upper + sentence + context_lower).replace(" ", "").replace(" ","").replace("　", "")
 
                             prompt = (
-                                    f"给定的上下文：" +
-                                    f"上文：{context_upper}\n" +
-                                    f"下文：{context_lower}\n" +
-                                    f"这段文本来自于研报、招标书或者法律条文，你需要判断以下这组逻辑词相互矛盾的句子中哪个不符合上下文语义：" +
-                                    f"句子序号1：{possible_error_sent}\n" +
-                                    f"句子序号2：{possible_error_sent_antonymy}\n" +
-                                    f"矛盾的逻辑词：{err}与{errs_antonymy[k]}\n" +
+                                    f"你的任务是检查段落中是否存在逻辑词使用错误。逻辑词错误是指在句子中使用了不适当的反义词。" +
+                                    f"段落：{check_sentence}\n" +
+                                    f"请注意以下反义词对：\n"
+                                    f"原词：{err}\n"
+                                    f"反义词：{errs_antonymy[k]}\n\n"
+                                    f"请判断原段落中的这个句子是否使用了不恰当的逻辑词。即，原本应该使用反义词中的一个词，但实际使用了另一种相对的反义词，从而导致语义上的错误。\n\n"
+                                    f"句子：{possible_error_sent}\n\n"
                                     """
-                                    请综合上述信息，你给出的回复需要包含以下这两个字段：
-                                    1.num: 不符合段落语义的句子的序号
-                                    2.error_sentence: 指出逻辑词不符合段落语义的那个句子，输出包含错误逻辑词的最小粒度分句，请用 markdown 格式。
+                                    请综合上述信息，你给出的回复需要包含以下这两个字段：\n
+                                    1.TrueOrNot: 如果句子中的逻辑词使用正确，填写 `True`；如果使用错误，填写 `False`。\n
+                                    2.error_sentence: 如果逻辑词使用正确，该字段为空；如果使用错误，输出包含错误的最小粒度分句，请用 markdown 格式标记。\n
                                     请按照以下JSON格式来回答：
                                     {
-                                        "num": [
-                                            "<你输出的有错误的句子序号>"
+                                        "TrueOrNot": [
+                                            "<你判断的该句子的逻辑词使用为正确或是错误>"
                                         ],
                                         "error_sentence": [
                                             "<包含错误之处的最小粒度分句>"
@@ -123,7 +124,7 @@ if __name__ == "__main__":
                                     """
                             )
                             messages = [
-                                {"role": "system", "content": "作为一位识别金融文本中的漏洞和矛盾的专家，您的任务是对一组矛盾的句子进行判断，选出逻辑词不符合上下文语义的那个句子。"},
+                                {"role": "system", "content": "作为一位识别金融类文本中逻辑词错误的专家，你的任务是判断句子中的逻辑词使用是否正确。"},
                                 {"role": "user", "content": prompt}
                             ]
                             response = client.chat.completions.create(
@@ -136,14 +137,14 @@ if __name__ == "__main__":
                             print(response.choices[0].message.content)
                             try:
                                 parsed_json = json.loads(clean_json_delimiters(response.choices[0].message.content))
-                                num = parsed_json['num'][0]  # 获取num字段的第一个元素
-                                error_sentence = parsed_json['error_sentence'][0]  # 获取error_sentence字段的第一个元素
-                                if int(num) == 1:  # 原句错误
+                                TrueOrNot = parsed_json['TrueOrNot'][0]
+                                error_sentence = parsed_json['error_sentence'][0]
+                                if TrueOrNot == 'Ture':  # 原句正确
+                                    continue
+                                if TrueOrNot == 'False':  # 原句错误
                                     csv_writer.writerow([filename, error_sentence, possible_error_sent, i])
                                     answer.append([filename, error_sentence, possible_error_sent, i])
                                     print(f'输出：{filename}, {error_sentence}, {possible_error_sent}, {i}')
-                                if int(num) == 2:  # 反义句错误
-                                    continue
                             except json.JSONDecodeError as e:
                                 print(f"JSON 解析失败: {e}")
                             except IndexError as e:

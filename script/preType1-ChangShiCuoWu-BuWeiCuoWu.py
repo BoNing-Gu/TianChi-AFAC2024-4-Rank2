@@ -18,12 +18,12 @@ parser = argparse.ArgumentParser(
     description='Chatbot Interface with Customizable Parameters')
 parser.add_argument('--model-url',
                     type=str,
-                    default='http://localhost:8000/v1',
+                    default='http://localhost:8001/v1',
                     help='Model URL')
 parser.add_argument('-m',   # 模型名
                     '--model',
                     type=str,
-                    required=True,
+                    default='Tongyi-Finance-14B-Chat-Int4',
                     help='Model name for the chatbot')
 parser.add_argument('-v',   # 版本
                     '--version',
@@ -56,7 +56,6 @@ if __name__ == "__main__":
     docx_files_dict_processed = process_docx_files_2_sents(docx_files_dict)
 
     # 设置
-    char_num = 200  # 上下文回顾窗口
     openai_api_key = "EMPTY"
     openai_api_base = args.model_url
     client = OpenAI(
@@ -68,11 +67,11 @@ if __name__ == "__main__":
     output1_dir = os.path.join('..', f'answer_{version}')
     if not os.path.exists(output1_dir):
         os.makedirs(output1_dir)
-    output_csv_path = os.path.join(output1_dir, 'answers_type1-常识错误-不未错误.csv')
+    output_csv_path = os.path.join(output1_dir, 'pre_type1-常识错误-不未错误.csv')
     # 打开 CSV 文件，准备写入数据
     with open(output_csv_path, 'w', newline='', encoding='utf-8') as csvfile:
         csv_writer = csv.writer(csvfile)
-        csv_writer.writerow(['id', 'sent', 'possible_error_sent', 'sent_id'])  # 写入 CSV 文件头部
+        csv_writer.writerow(['id', 'judge', 'Reason', 'sent_id'])  # 写入 CSV 文件头部
 
         # 抓取不未错误
         errs = ['不', '不为', '不会', '不能', '不得', '不具有', '会', '未', '无', '没有', '不可以', '可以', '免除',
@@ -95,55 +94,45 @@ if __name__ == "__main__":
                             possible_error_sent_antonymy = ''.join(temp_list)
                             print(f'反义：{possible_error_sent_antonymy}')
 
-                            # 提取上下文
-                            context_upper, context_lower = extract_context(i, doc, char_num)
-
                             prompt = (
-                                    f"给定的上下文：" +
-                                    f"上文：{context_upper}\n" +
-                                    f"下文：{context_lower}\n" +
-                                    f"这段文本来自于研报、招标书或者法律条文，你需要判断以下这组逻辑词相互矛盾的句子中哪个不符合上下文语义：" +
-                                    f"句子序号1：{possible_error_sent}\n" +
-                                    f"句子序号2：{possible_error_sent_antonymy}\n" +
-                                    f"矛盾的逻辑词：{err}与{errs_antonymy[k]}\n" +
+                                    f"这段文本来自于研报、招标书或者法律条文，这句话是否存在逻辑词使用的错误？" +
+                                    f"句子：{possible_error_sent}\n" +
+                                    f"可能出错的逻辑词：{err}\n" +
                                     """
                                     请综合上述信息，你给出的回复需要包含以下这两个字段：
-                                    1.num: 不符合段落语义的句子的序号
-                                    2.error_sentence: 指出逻辑词不符合段落语义的那个句子，输出包含错误逻辑词的最小粒度分句，请用 markdown 格式。
+                                    1.judge: 如果句子中的逻辑词没有错误，填写`True`；如果句子中的逻辑词有错误，填写`False`。
+                                    2.reason: 一步步思考，按要点给出你做出判断的推理逻辑。
                                     请按照以下JSON格式来回答：
                                     {
-                                        "num": [
-                                            "<你输出的有错误的句子序号>"
+                                        "judge": [
+                                            "<句子是正确还是错误>"
                                         ],
-                                        "error_sentence": [
-                                            "<包含错误之处的最小粒度分句>"
+                                        "reason": [
+                                            "<你的推理逻辑>"
                                         ]
                                     }
                                     警告：你的回复将直接用于javascript的JSON.parse解析，所以注意一定要以标准的JSON格式做回答，不要包含任何其他非JSON内容，否则你将被扣分！！！
                                     """
                             )
                             messages = [
-                                {"role": "system", "content": "作为一位识别金融文本中的漏洞和矛盾的专家，您的任务是对一组矛盾的句子进行判断，选出逻辑词不符合上下文语义的那个句子。"},
+                                {"role": "system", "content": "作为一位识别金融文本中的漏洞和矛盾的专家，您的任务是判断一个含有逻辑词的句子是否正确，并给出你的推理逻辑"},
                                 {"role": "user", "content": prompt}
                             ]
                             response = client.chat.completions.create(
                                 model=args.model,
                                 messages=messages,
                                 stream=False,
-                                max_tokens=4096,
+                                max_tokens=1024,
                                 temperature=args.temp
                             )
                             print(response.choices[0].message.content)
                             try:
                                 parsed_json = json.loads(clean_json_delimiters(response.choices[0].message.content))
-                                num = parsed_json['num'][0]  # 获取num字段的第一个元素
-                                error_sentence = parsed_json['error_sentence'][0]  # 获取error_sentence字段的第一个元素
-                                if int(num) == 1:  # 原句错误
-                                    csv_writer.writerow([filename, error_sentence, possible_error_sent, i])
-                                    answer.append([filename, error_sentence, possible_error_sent, i])
-                                    print(f'输出：{filename}, {error_sentence}, {possible_error_sent}, {i}')
-                                if int(num) == 2:  # 反义句错误
-                                    continue
+                                judge = parsed_json['judge'][0]
+                                reason = parsed_json['reason'][0]
+                                csv_writer.writerow([filename, judge, reason, i])
+                                answer.append([filename, judge, reason, i])
+                                print(f'输出：{filename}, {judge}, {reason}, {i}')
                             except json.JSONDecodeError as e:
                                 print(f"JSON 解析失败: {e}")
                             except IndexError as e:
@@ -156,7 +145,7 @@ if __name__ == "__main__":
     output2_dir = os.path.join('..', f'answer_{version}-副本')
     if not os.path.exists(output2_dir):
         os.makedirs(output2_dir)
-    output_excel_path = os.path.join(output2_dir, 'answers_type1-常识错误-不未错误-备份.xlsx')
-    answer_df = pd.DataFrame(answer, columns=['id', 'sent', 'possible_error_sent', 'sent_id'])
+    output_excel_path = os.path.join(output2_dir, 'pre_type1-常识错误-不未错误-备份.xlsx')
+    answer_df = pd.DataFrame(answer, columns=['id', 'judge', 'Reason', 'sent_id'])
     answer_df.to_excel(output_excel_path, index=False)
 
