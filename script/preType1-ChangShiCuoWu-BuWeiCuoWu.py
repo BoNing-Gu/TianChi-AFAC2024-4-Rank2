@@ -37,7 +37,7 @@ parser.add_argument('-d',   # 数据目录路径
                     help='Data Dir')
 parser.add_argument('--temp',
                     type=float,
-                    default=0.1,
+                    default=0.4,
                     help='Temperature for text generation')
 parser.add_argument('--stop-token-ids',
                     type=str,
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     # 打开 CSV 文件，准备写入数据
     with open(output_csv_path, 'w', newline='', encoding='utf-8') as csvfile:
         csv_writer = csv.writer(csvfile)
-        csv_writer.writerow(['id', 'judge', 'Reason', 'sent_id'])  # 写入 CSV 文件头部
+        csv_writer.writerow(['id', 'result', 'sent_id'])  # 写入 CSV 文件头部
 
         # 抓取不未错误
         errs = ['不', '不为', '不会', '不能', '不得', '不具有', '会', '未', '无', '没有', '不可以', '可以', '免除',
@@ -89,33 +89,14 @@ if __name__ == "__main__":
                             found_keyword = True
                             possible_error_sent = sentence
                             print(f'原句：{possible_error_sent}')
-                            temp_list = sentence_list[:]
-                            temp_list[j] = errs_antonymy[k]
-                            possible_error_sent_antonymy = ''.join(temp_list)
-                            print(f'反义：{possible_error_sent_antonymy}')
-
                             prompt = (
-                                    f"这段文本来自于研报、招标书或者法律条文，这句话是否存在逻辑词使用的错误？" +
+                                    f"这段文本来自研报、招标书或法律条文。我需要你帮助我识别句子中可能存在的逻辑词使用错误。请综合以下信息，逐步分析，并提供相关知识、事实依据和推理逻辑，帮助我判断句子是否有逻辑错误。" +
                                     f"句子：{possible_error_sent}\n" +
                                     f"可能出错的逻辑词：{err}\n" +
-                                    """
-                                    请综合上述信息，你给出的回复需要包含以下这两个字段：
-                                    1.judge: 如果句子中的逻辑词没有错误，填写`True`；如果句子中的逻辑词有错误，填写`False`。
-                                    2.reason: 一步步思考，按要点给出你做出判断的推理逻辑。
-                                    请按照以下JSON格式来回答：
-                                    {
-                                        "judge": [
-                                            "<句子是正确还是错误>"
-                                        ],
-                                        "reason": [
-                                            "<你的推理逻辑>"
-                                        ]
-                                    }
-                                    警告：你的回复将直接用于javascript的JSON.parse解析，所以注意一定要以标准的JSON格式做回答，不要包含任何其他非JSON内容，否则你将被扣分！！！
-                                    """
+                                    f"请从逻辑词的使用角度分析句子，指出可能的错误，并解释你的判断依据。"
                             )
                             messages = [
-                                {"role": "system", "content": "作为一位识别金融文本中的漏洞和矛盾的专家，您的任务是判断一个含有逻辑词的句子是否正确，并给出你的推理逻辑"},
+                                {"role": "system", "content": "作为识别金融文本漏洞和矛盾的专家，你的任务是帮助判断句子中的逻辑词是否正确。请提供相关知识、事实依据和推理逻辑。"},
                                 {"role": "user", "content": prompt}
                             ]
                             response = client.chat.completions.create(
@@ -125,14 +106,12 @@ if __name__ == "__main__":
                                 max_tokens=1024,
                                 temperature=args.temp
                             )
-                            print(response.choices[0].message.content)
+                            # print(response.choices[0].message.content)
                             try:
-                                parsed_json = json.loads(clean_json_delimiters(response.choices[0].message.content))
-                                judge = parsed_json['judge'][0]
-                                reason = parsed_json['reason'][0]
-                                csv_writer.writerow([filename, judge, reason, i])
-                                answer.append([filename, judge, reason, i])
-                                print(f'输出：{filename}, {judge}, {reason}, {i}')
+                                result = response.choices[0].message.content
+                                csv_writer.writerow([filename, result, i])
+                                answer.append([filename, result, i])
+                                print(f'输出：{filename}, {result}, {i}')
                             except json.JSONDecodeError as e:
                                 print(f"JSON 解析失败: {e}")
                             except IndexError as e:
@@ -146,6 +125,6 @@ if __name__ == "__main__":
     if not os.path.exists(output2_dir):
         os.makedirs(output2_dir)
     output_excel_path = os.path.join(output2_dir, 'pre_type1-常识错误-不未错误-备份.xlsx')
-    answer_df = pd.DataFrame(answer, columns=['id', 'judge', 'Reason', 'sent_id'])
+    answer_df = pd.DataFrame(answer, columns=['id', 'result', 'sent_id'])
     answer_df.to_excel(output_excel_path, index=False)
 

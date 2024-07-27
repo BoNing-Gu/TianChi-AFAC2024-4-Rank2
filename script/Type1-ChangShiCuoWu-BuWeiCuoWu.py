@@ -69,6 +69,10 @@ if __name__ == "__main__":
     if not os.path.exists(output1_dir):
         os.makedirs(output1_dir)
     output_csv_path = os.path.join(output1_dir, 'answers_type1-常识错误-不未错误.csv')
+
+    # 读取Qwen
+    qwen_csv_path = os.path.join(output1_dir, 'pre_type1-常识错误-不未错误.csv')
+    qwen = pd.read_csv(qwen_csv_path)
     # 打开 CSV 文件，准备写入数据
     with open(output_csv_path, 'w', newline='', encoding='utf-8') as csvfile:
         csv_writer = csv.writer(csvfile)
@@ -97,6 +101,12 @@ if __name__ == "__main__":
 
                             # 提取上下文
                             context_upper, context_lower = extract_context(i, doc, char_num)
+                            # 提取qwen答案
+                            try:
+                                qwen_answer = qwen[(qwen['id'] == filename) & (qwen['sent_id'] == i)]['result'].values[0]
+                            except Exception as e:
+                                qwen_answer = ""
+                                print(f"qwen无回答: {e}")
 
                             prompt = (
                                     f"给定的上下文：" +
@@ -105,7 +115,7 @@ if __name__ == "__main__":
                                     f"这段文本来自于研报、招标书或者法律条文，你需要判断以下这组逻辑词相互矛盾的句子中哪个不符合上下文语义：" +
                                     f"句子序号1：{possible_error_sent}\n" +
                                     f"句子序号2：{possible_error_sent_antonymy}\n" +
-                                    f"矛盾的逻辑词：{err}与{errs_antonymy[k]}\n" +
+                                    f"你的金融助手对于句子1是否正确给出了以下判断，你可以结合助手的回答和你自己的知识进行推理：{qwen_answer}\n" +
                                     """
                                     请综合上述信息，你给出的回复需要包含以下这两个字段：
                                     1.num: 不符合段落语义的句子的序号
@@ -130,7 +140,7 @@ if __name__ == "__main__":
                                 model=args.model,
                                 messages=messages,
                                 stream=False,
-                                max_tokens=4096,
+                                max_tokens=2048,
                                 temperature=args.temp
                             )
                             print(response.choices[0].message.content)

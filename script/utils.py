@@ -34,22 +34,61 @@ def process_docx_files_2_para(docx_files_dict):
             docx_files_dict_processed[filename].append(current_paragraph.strip())
     return docx_files_dict_processed
 
+# def process_docx_files_2_sents(docx_files_dict):
+#     """文本分句处理"""
+#     docx_files_dict_processed = {}
+#     for filename, doc in docx_files_dict.items():
+#         docx_files_dict_processed[filename] = []
+#         for para in doc.paragraphs:
+#             if len(para.text) == 0:
+#                 continue
+#             segmenter = Segmenter()
+#             para_2_sentences = segmenter.segment(para.text)
+#             # print(para_2_sentences)
+#             for sentence in para_2_sentences:
+#                 if len(sentence.strip()) == 0:
+#                     continue
+#                 docx_files_dict_processed[filename].append(sentence.strip())
+#     return docx_files_dict_processed
+
 def process_docx_files_2_sents(docx_files_dict):
     """文本分句处理"""
-    docx_files_dict_processed = {}
+    docx_files_dict_processed_1 = {}
+    docx_files_dict_processed_2 = {}
     for filename, doc in docx_files_dict.items():
-        docx_files_dict_processed[filename] = []
+        all_para = []
         for para in doc.paragraphs:
-            if len(para.text) == 0:
+            all_para.append(para.text)
+        docx_files_dict_processed_1[filename] = ''.join(all_para)
+
+    s_list = [r'^\d）', r'^（\d）', r'^\d\.', r'^\d\.\d']
+    compiled_patterns = [re.compile(pattern) for pattern in s_list]
+
+    for filename, doc in docx_files_dict_processed_1.items():
+        docx_files_dict_processed_2[filename] = []
+        segmenter = Segmenter()
+        para_2_sentences = segmenter.segment(doc)
+
+        i = 0
+        while i < len(para_2_sentences):
+            sentence = para_2_sentences[i]
+            # 跳过超短句
+            if len(sentence.strip()) < 3:
+                i += 1
                 continue
-            segmenter = Segmenter()
-            para_2_sentences = segmenter.segment(para.text)
-            # print(para_2_sentences)
-            for sentence in para_2_sentences:
-                if len(sentence.strip()) == 0:
-                    continue
-                docx_files_dict_processed[filename].append(sentence.strip())
-    return docx_files_dict_processed
+            # 检查并删除模式
+            for pattern in compiled_patterns:
+                match = pattern.match(sentence)
+                if match:
+                    sentence = sentence[match.end():].lstrip()
+            # 连接下一句并跳过它
+            if i + 1 < len(para_2_sentences) and para_2_sentences[i + 1].startswith('》'):
+                sentence += para_2_sentences[i + 1]
+                i += 1  # 跳过下一个句子
+            docx_files_dict_processed_2[filename].append(sentence.strip())
+            i += 1  # 处理下一个句子
+
+    return docx_files_dict_processed_2
 
 def process_docx_files_sents_2_longer(docx_files_dict, num):
     """文本分句合成更长分句"""
@@ -116,4 +155,8 @@ def clean_json_delimiters(text):
     # 检查结尾是否有 '```'
     if text.endswith(end_delimiter):
         text = text[:-len(end_delimiter)].rstrip()  # 删除结尾的 '{```}' 并去除空格
+    # 检查结尾是否有 '<|im_end|>'
+    qwen_end_delimiter = '<|im_end|>'
+    if text.endswith(qwen_end_delimiter):
+        text = text[:-len(qwen_end_delimiter)].rstrip()
     return text

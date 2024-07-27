@@ -9,7 +9,7 @@ SERVED_MODEL_NAME="glm-4-9b-chat"
 PORT=8000
 HOST="0.0.0.0"
 GPU_MEMORY_UTILIZATION=1
-MAX_MODEL_LEN=8192
+MAX_MODEL_LEN=10240
 
 # Run the API server
 python -m vllm.entrypoints.openai.api_server \
