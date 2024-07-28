@@ -1,6 +1,7 @@
 import os
 import re
 import docx
+import json
 from pysbd import Segmenter
 
 def read_docx_files(directory):
@@ -144,18 +145,19 @@ def process_docx_files_year(docx_files_dict_processed):
 def extract_context(i, doc, char_num):
     context_upper = ''  # 提取上文
     for j in range(i - 1, -1, -1):  # 从当前句子的前一句开始向前遍历
-        context_upper = doc[j] + ' ' + context_upper
+        context_upper = doc[j] + context_upper
         if len(context_upper) >= char_num:
             break
     context_lower = ''  # 提取下文
     for j in range(i + 1, len(doc)):  # 从当前句子的后一句开始向后遍历
-        context_lower += ' ' + doc[j]
+        context_lower += doc[j]
         if len(context_lower) >= char_num:
             break
     # 返回整合的上下文
     return context_upper.strip(), context_lower.strip()
 
 def clean_json_delimiters(text):
+    text = text.strip()
     start_delimiter = '```json'
     end_delimiter = '```'
     # 检查开头是否有 '```json'
@@ -169,3 +171,18 @@ def clean_json_delimiters(text):
     if text.endswith(qwen_end_delimiter):
         text = text[:-len(qwen_end_delimiter)].rstrip()
     return text
+
+if __name__ == '__main__':
+    str = """
+        ```json
+        {
+            "num": [
+                "2"
+            ],
+            "error_sentence": [
+                "一般招标项目不得采取随机抽取方式"
+            ]
+        }
+        ```
+    """
+    parsed_json = json.loads(clean_json_delimiters(str))

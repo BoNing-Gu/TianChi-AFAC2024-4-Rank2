@@ -23,7 +23,7 @@ parser.add_argument('--model-url',
 parser.add_argument('-m',   # 模型名
                     '--model',
                     type=str,
-                    required=True,
+                    default=r'glm-4-9b-chat',
                     help='Model name for the chatbot')
 parser.add_argument('-v',   # 版本
                     '--version',
@@ -80,9 +80,9 @@ if __name__ == "__main__":
 
         # 抓取不未错误
         errs = ['不', '不为', '不会', '不能', '不得', '不具有', '会', '未', '无', '没有', '不可以', '可以', '免除',
-                '被', '未被', '具备', '不具备', '免除', '不合理', '合理', '未经过', '无权', '有权', '存在']
+                '被', '未被', '不被', '具备', '不具备', '免除', '不合理', '合理', '未经', '无权', '有权', '存在', '不存在', '不用']
         errs_antonymy = ['', '为', '会', '可以', '可以', '具有', '不会', '', '有', '有', '可以', '不得', '不免除',
-                         '未被', '被', '不具备', '具备', '不免除', '合理', '不合理', '经过', '有权', '无权', '不存在']
+                         '未被', '被', '被', '不具备', '具备', '不免除', '合理', '不合理', '经', '有权', '无权', '不存在', '存在', '须']
         for filename, doc in docx_files_dict_processed.items():
             print(f'处理文档：{filename}')
             if filename.startswith('平安'):
@@ -118,7 +118,9 @@ if __name__ == "__main__":
                                     f"这段文本来自于研报、招标书或者法律条文，你需要判断以下这组逻辑词相互矛盾的句子中哪个不符合上下文语义：" +
                                     f"句子序号1：{possible_error_sent}\n" +
                                     f"句子序号2：{possible_error_sent_antonymy}\n" +
-                                    f"你的金融助手对于句子1是否正确给出了以下判断，你可以结合助手的回答和你自己的知识进行推理：{qwen_answer}\n" +
+                                    f"你的金融助手对于句子1中的逻辑词`{err}`相对于其反义词`{errs_antonymy[k]}`是否正确给出了以下判断：" +
+                                    f"{qwen_answer}\n" +
+                                    f"强调！金融助手的回答只能作为参考，请根据上下文含义和句子逻辑词含义进行判断。\n"
                                     """
                                     请综合上述信息，你给出的回复需要包含以下这两个字段：
                                     1.num: 不符合段落语义的句子的序号
@@ -136,7 +138,7 @@ if __name__ == "__main__":
                                     """
                             )
                             messages = [
-                                {"role": "system", "content": "作为一位识别金融文本中的漏洞和矛盾的专家，您的任务是对一组矛盾的句子进行判断，选出逻辑词不符合上下文语义的那个句子。"},
+                                {"role": "system", "content": f"作为一位识别金融文本中的漏洞和矛盾的专家，你专注于判断一对句子中的逻辑词`{err}`是否使用恰当，选出逻辑词不符合上下文语义的那个句子。"},
                                 {"role": "user", "content": prompt}
                             ]
                             response = client.chat.completions.create(

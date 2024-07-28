@@ -18,12 +18,12 @@ parser = argparse.ArgumentParser(
     description='Chatbot Interface with Customizable Parameters')
 parser.add_argument('--model-url',
                     type=str,
-                    default='http://localhost:8000/v1',
+                    default='http://localhost:8001/v1',
                     help='Model URL')
 parser.add_argument('-m',   # 模型名
                     '--model',
                     type=str,
-                    required=True,
+                    default='Tongyi-Finance-14B-Chat-Int4',
                     help='Model name for the chatbot')
 parser.add_argument('-v',   # 版本
                     '--version',
@@ -37,7 +37,7 @@ parser.add_argument('-d',   # 数据目录路径
                     help='Data Dir')
 parser.add_argument('--temp',
                     type=float,
-                    default=0.1,
+                    default=0.4,
                     help='Temperature for text generation')
 parser.add_argument('--stop-token-ids',
                     type=str,
@@ -104,7 +104,7 @@ if __name__ == "__main__":
                         f"句子：{possible_error_sent}\n" +
                         """
                         请综合上述信息，你给出的回复需要包含以下这两个字段：
-                        1.TrueOrNot: 如果句子没有数值大小错误或缺失，字段填为`True`；如果句子有过大、过小或缺失的错误数值，字段填为`False`，比如标书金额过小、时间范围过大、面积单位过大等。
+                        1.TrueOrNot: 如果句子没有数值大小错误或缺失，字段填为True；如果句子有过大、过小或缺失的错误数值，字段填为False，比如标书金额过小、时间范围过大、面积单位过大等。
                         2.sentence: 如果句子没有数值大小错误或缺失，这个字段留空；如果这个句子有过大、过小或缺失的错误数值，输出包含错误部分的最小粒度分句，请用 markdown 格式。
                         请按照以下JSON格式来回答：
                         {
