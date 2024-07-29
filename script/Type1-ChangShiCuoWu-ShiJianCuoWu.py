@@ -23,7 +23,7 @@ parser.add_argument('--model-url',
 parser.add_argument('-m',   # 模型名
                     '--model',
                     type=str,
-                    required=True,
+                    default=r'glm-4-9b-chat',
                     help='Model name for the chatbot')
 parser.add_argument('-v',   # 版本
                     '--version',
@@ -105,7 +105,7 @@ if __name__ == "__main__":
                         f"这篇文档中关于文档基本年份信息的句子为：{doc[0]}\n"
                         f"上文：{context_upper}\n" +
                         f"下文：{context_lower}\n" +
-                        f"这段文本来自于研报、招标书或者法律条文，你需要判断以下这个包含时间信息的句子是否存在错误，比如时间信息不符合上下文语义、时间数值缺失都属于错误：" +
+                        f"这段文本来自于研报、招标书或者法律条文，你需要判断以下这个包含时间信息的句子是否存在错误，比如时间常识错误、时间信息不符合上下文语义、时间数值缺失都属于错误：" +
                         f"句子：{possible_error_sent}\n" +
                         """
                         请综合上述信息，你给出的回复需要包含以下这两个字段：
@@ -131,7 +131,7 @@ if __name__ == "__main__":
                     model=args.model,
                     messages=messages,
                     stream=False,
-                    max_tokens=4096,
+                    max_tokens=2048,
                     temperature=args.temp
                 )
                 print(response.choices[0].message.content)

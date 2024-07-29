@@ -23,7 +23,7 @@ parser.add_argument('--model-url',
 parser.add_argument('-m',   # 模型名
                     '--model',
                     type=str,
-                    required=True,
+                    default='glm-4-9b-chat',
                     help='Model name for the chatbot')
 parser.add_argument('-v',   # 版本
                     '--version',
@@ -128,7 +128,7 @@ if __name__ == "__main__":
                         model=args.model,
                         messages=messages,
                         stream=False,
-                        max_tokens=4096,
+                        max_tokens=2048,
                         temperature=args.temp
                     )
                     print(response.choices[0].message.content)

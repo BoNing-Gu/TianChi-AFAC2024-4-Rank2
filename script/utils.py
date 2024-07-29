@@ -62,17 +62,20 @@ def process_docx_files_2_sents(docx_files_dict):
             all_para.append(para.text)
         docx_files_dict_processed_1[filename] = ''.join(all_para)
 
-    s_list = [
+    left_list = [
         r'^（\d）',  # 句子开头：（1）
         r'^\d）',  # 句子开头：1）
         r'^\d\.\d',  # 句子开头：1.1
         r'^\d\.',  # 句子开头：1.
+    ]
+    right_list = [
         r'（\d）$',  # 句子末尾：（1）
         r'\d）$',  # 句子末尾：1）
         r'\d\.\d$'  # 句子末尾：1.1
         r'\d\.$',  # 句子末尾：1.
     ]
-    compiled_patterns = [re.compile(pattern) for pattern in s_list]
+    left_patterns = [re.compile(pattern) for pattern in left_list]
+    right_patterns = [re.compile(pattern) for pattern in right_list]
 
     for filename, doc in docx_files_dict_processed_1.items():
         docx_files_dict_processed_2[filename] = []
@@ -87,10 +90,14 @@ def process_docx_files_2_sents(docx_files_dict):
                 i += 1
                 continue
             # 检查并删除模式
-            for pattern in compiled_patterns:
+            for pattern in left_patterns:
                 match = pattern.match(sentence)
                 if match:
                     sentence = sentence[match.end():].lstrip()
+            for pattern in right_patterns:
+                match = pattern.match(sentence)
+                if match:
+                    sentence = sentence[:match.start()].rstrip()
             # 连接下一句并跳过它
             if i + 1 < len(para_2_sentences) and para_2_sentences[i + 1].startswith('》'):
                 sentence += para_2_sentences[i + 1]

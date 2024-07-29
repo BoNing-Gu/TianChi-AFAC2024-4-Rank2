@@ -93,39 +93,47 @@ if __name__ == "__main__":
                             found_keyword = True
                             possible_error_sent = sentence
                             print(f'原句：{possible_error_sent}')
-                            # 提取上下文
-                            context_upper, context_lower = extract_context(i, doc, char_num)
-                            prompt = (
-                                    f"这段文本来自研报、招标书或法律条文，我需要你帮助我识别句子中可能存在的逻辑词使用错误，我会向你提供句子的上文。" +
-                                    f"上文：{context_upper}\n" +
-                                    f"句子：{possible_error_sent}\n" +
-                                    f"只考虑原句所用的逻辑词和其反义词相比哪个更加恰当：`{err}`和`{errs_antonymy[k]}`\n" +
-                                    f"请从逻辑词`{err}`的使用角度分析句子，指出原句所用的逻辑词和反义词哪个更加恰当，并简要解释你进行判断所依据的知识。"
-                            )
-                            messages = [
-                                {"role": "system", "content": f"作为识别金融文本漏洞和矛盾的专家，你专注于判断句子中的逻辑词`{err}`是否使用恰当，提供相关知识和推理逻辑，不要考虑句子中的其他潜在错误。"},
-                                {"role": "user", "content": prompt}
-                            ]
-                            response = client.chat.completions.create(
-                                model=args.model,
-                                messages=messages,
-                                stream=False,
-                                max_tokens=256,
-                                temperature=args.temp
-                            )
-                            try:
-                                result = response.choices[0].message.content
-                                csv_writer.writerow([filename, result, i])
-                                answer.append([filename, result, i])
-                                print(f'输出：{filename}, {result}, {i}')
-                            except json.JSONDecodeError as e:
-                                print(f"JSON 解析失败: {e}")
-                            except IndexError as e:
-                                print(f"索引越界: {e}")
-                            except ValueError as e:
-                                print(f"值错误：{e}")
-                            except TypeError as e:
-                                print(f"类型错误：{e}")
+                            break
+
+                if found_keyword:
+                    # 提取上下文
+                    context_upper, context_lower = extract_context(i, doc, char_num)
+                    prompt = (
+                            "这段文本来源于研报、招标书或法律条文：\n" +
+                            f"上文内容：{context_upper}\n" +
+                            f"请检查下面的句子，判断其中是否存在逻辑词的使用错误，并结合上文内容提供相关金融知识以辅助判断。\n" +
+                            f"待检查句子：{possible_error_sent}\n" +
+                            f"请逐步分析句子涉及的金融知识，并在句子表述与上文不符的情况下，提供修正后的金融知识。\n" +
+                            f"示例：若上文提到'承诺要求投标人应承诺近三年内未发生以下情况或失信行为：'，而句子表述为'没有被法院或其他国家行政管理部门判定为违法分包、转包、违规用工。'，由于上文要求的是'未发生以下失信行为'，应修正为'被法院或其他国家行政管理部门判定为违法分包、转包、违规用工。'\n\n" +
+                            "请按以下JSON格式提供回答：\n"
+                            "[\n"
+                            "    \"<待检查句子修正后的金融知识>\"\n"
+                            "]"
+                    )
+                    messages = [
+                        {"role": "system", "content": f"作为金融文本分析助手，你的任务是提供金融相关知识以帮助判断一个句子是否符合上下文逻辑。请关注'不'、'没有'、'未'、'被'等逻辑词的错误，不必考虑句子中的其他潜在错误。"},
+                        {"role": "user", "content": prompt}
+                    ]
+                    response = client.chat.completions.create(
+                        model=args.model,
+                        messages=messages,
+                        stream=False,
+                        max_tokens=256,
+                        temperature=args.temp
+                    )
+                    try:
+                        result = response.choices[0].message.content
+                        csv_writer.writerow([filename, result, i])
+                        answer.append([filename, result, i])
+                        print(f'输出：{filename}, {result}, {i}')
+                    except json.JSONDecodeError as e:
+                        print(f"JSON 解析失败: {e}")
+                    except IndexError as e:
+                        print(f"索引越界: {e}")
+                    except ValueError as e:
+                        print(f"值错误：{e}")
+                    except TypeError as e:
+                        print(f"类型错误：{e}")
 
     output2_dir = os.path.join('..', f'answer_{version}-副本')
     if not os.path.exists(output2_dir):
