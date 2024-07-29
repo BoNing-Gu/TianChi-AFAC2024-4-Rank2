@@ -91,12 +91,14 @@ if __name__ == "__main__":
                 if i == 0:  # 跳过基本年份信息
                     continue
                 found_keyword = False
-                for j, err in enumerate(errs):
-                    if sentence.find(err) != -1:
-                        found_keyword = True
-                        possible_error_sent = sentence
-                        print(f'原句：{possible_error_sent}')
-                        break
+                sentence_list = jieba.lcut(sentence)
+                for j, word in enumerate(sentence_list):
+                    for k, err in enumerate(errs):
+                        if err == word:
+                            found_keyword = True
+                            possible_error_sent = sentence
+                            print(f'原句：{possible_error_sent}')
+                            break
 
                 if not found_keyword:
                     continue

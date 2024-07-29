@@ -35,23 +35,6 @@ def process_docx_files_2_para(docx_files_dict):
             docx_files_dict_processed[filename].append(current_paragraph.strip())
     return docx_files_dict_processed
 
-# def process_docx_files_2_sents(docx_files_dict):
-#     """文本分句处理"""
-#     docx_files_dict_processed = {}
-#     for filename, doc in docx_files_dict.items():
-#         docx_files_dict_processed[filename] = []
-#         for para in doc.paragraphs:
-#             if len(para.text) == 0:
-#                 continue
-#             segmenter = Segmenter()
-#             para_2_sentences = segmenter.segment(para.text)
-#             # print(para_2_sentences)
-#             for sentence in para_2_sentences:
-#                 if len(sentence.strip()) == 0:
-#                     continue
-#                 docx_files_dict_processed[filename].append(sentence.strip())
-#     return docx_files_dict_processed
-
 def process_docx_files_2_sents(docx_files_dict):
     """文本分句处理"""
     docx_files_dict_processed_1 = {}
@@ -73,6 +56,10 @@ def process_docx_files_2_sents(docx_files_dict):
         r'\d）$',  # 句子末尾：1）
         r'\d\.\d$'  # 句子末尾：1.1
         r'\d\.$',  # 句子末尾：1.
+        r'\d\．$',  # 句子末尾：1．
+        r'①.$',
+        r'②.$',
+        r'③.$',
     ]
     left_patterns = [re.compile(pattern) for pattern in left_list]
     right_patterns = [re.compile(pattern) for pattern in right_list]
@@ -84,18 +71,24 @@ def process_docx_files_2_sents(docx_files_dict):
 
         i = 0
         while i < len(para_2_sentences):
-            sentence = para_2_sentences[i]
+            sentence = para_2_sentences[i].replace(" ", "").replace("　", " ").replace("\u3000", " ").replace("\xa0", " ")
+            # 跳过‘招标文件’最后三个句子
+            name_list = ['招标', '定商', '承包', '采购', '货代', '服务', '油', '新能源']
+            for name in name_list:
+                if (filename.find(name) != -1) and (len(para_2_sentences) - i <= 4):
+                    i += 1
+                    continue
             # 跳过超短句
             if len(sentence.strip()) <= 3:
                 i += 1
                 continue
             # 检查并删除模式
             for pattern in left_patterns:
-                match = pattern.match(sentence)
+                match = pattern.search(sentence)
                 if match:
                     sentence = sentence[match.end():].lstrip()
             for pattern in right_patterns:
-                match = pattern.match(sentence)
+                match = pattern.search(sentence)
                 if match:
                     sentence = sentence[:match.start()].rstrip()
             # 连接下一句并跳过它

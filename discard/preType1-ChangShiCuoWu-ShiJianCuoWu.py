@@ -88,12 +88,14 @@ if __name__ == "__main__":
                 if i == 0:  # 跳过基本年份信息
                     continue
                 found_keyword = False
-                for j, err in enumerate(errs):
-                    if sentence.find(err) != -1:
-                        found_keyword = True
-                        possible_error_sent = sentence
-                        print(f'原句：{possible_error_sent}')
-                        break
+                sentence_list = jieba.lcut(sentence)
+                for j, word in enumerate(sentence_list):
+                    for k, err in enumerate(errs):
+                        if err == word:
+                            found_keyword = True
+                            possible_error_sent = sentence
+                            print(f'原句：{possible_error_sent}')
+                            break
 
                 if not found_keyword:
                     continue
@@ -114,7 +116,7 @@ if __name__ == "__main__":
                         "]"
                 )
                 messages = [
-                    {"role": "system", "content": "作为金融文本分析助手，你的任务是提供金融相关知识以帮助判断一个句子的时间信息是否符合现实和上下文。"},
+                    {"role": "system", "content": "作为金融文本分析助手，你的任务是提供金融相关知识以帮助判断一个句子的时间信息是否符合常识和上文语义。"},
                     {"role": "user", "content": prompt}
                 ]
                 response = client.chat.completions.create(

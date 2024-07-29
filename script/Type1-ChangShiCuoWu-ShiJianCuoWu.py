@@ -87,12 +87,14 @@ if __name__ == "__main__":
                 if i == 0:  # 跳过基本年份信息
                     continue
                 found_keyword = False
-                for j, err in enumerate(errs):
-                    if sentence.find(err) != -1:
-                        found_keyword = True
-                        possible_error_sent = sentence
-                        print(f'原句：{possible_error_sent}')
-                        break
+                sentence_list = jieba.lcut(sentence)
+                for j, word in enumerate(sentence_list):
+                    for k, err in enumerate(errs):
+                        if err == word:
+                            found_keyword = True
+                            possible_error_sent = sentence
+                            print(f'原句：{possible_error_sent}')
+                            break
 
                 if not found_keyword:
                     continue
@@ -105,7 +107,7 @@ if __name__ == "__main__":
                         f"这篇文档中关于文档基本年份信息的句子为：{doc[0]}\n"
                         f"上文：{context_upper}\n" +
                         f"下文：{context_lower}\n" +
-                        f"这段文本来自于研报、招标书或者法律条文，你需要判断以下这个包含时间信息的句子是否存在错误，比如时间常识错误、时间信息不符合上下文语义、时间数值缺失都属于错误：" +
+                        f"请判断以下句子是否存在时间信息错误，包括时间常识错误、时间信息不符合上下文语义、时间数值缺失等问题：" +
                         f"句子：{possible_error_sent}\n" +
                         """
                         请综合上述信息，你给出的回复需要包含以下这两个字段：
@@ -117,14 +119,14 @@ if __name__ == "__main__":
                                 "<你判断的该句子为正确或是错误>"
                             ],
                             "error_sentence": [
-                                "<包含错误之处的最小粒度分句>"
+                                "<原句中包含错误之处的最小粒度分句>"
                             ]
                         }
                         最后强调一下：你的回复将直接用于javascript的JSON.parse解析，所以注意一定要以标准的JSON格式做回答，不要包含任何其他非JSON内容，否则你将被扣分！！！
                         """
                 )
                 messages = [
-                    {"role": "system", "content": "作为一位识别金融文本中的漏洞和矛盾的专家，您的任务是判断一个包含时间信息的句子是否存在错误，如果存在错误就指出错误之处。"},
+                    {"role": "system", "content": "作为一位识别金融文本中的漏洞和矛盾的专家，您的任务是判断一个包含时间信息的句子是否存在错误，如有错误需指出错误之处。"},
                     {"role": "user", "content": prompt}
                 ]
                 response = client.chat.completions.create(
