@@ -69,6 +69,7 @@ if __name__ == "__main__":
     if not os.path.exists(output1_dir):
         os.makedirs(output1_dir)
     output_csv_path = os.path.join(output1_dir, 'pre_type1-常识错误-不未错误.csv')
+
     # 打开 CSV 文件，准备写入数据
     with open(output_csv_path, 'w', newline='', encoding='utf-8') as csvfile:
         csv_writer = csv.writer(csvfile)
@@ -141,4 +142,3 @@ if __name__ == "__main__":
     output_excel_path = os.path.join(output2_dir, 'pre_type1-常识错误-不未错误-备份.xlsx')
     answer_df = pd.DataFrame(answer, columns=['id', 'result', 'sent_id'])
     answer_df.to_excel(output_excel_path, index=False)
-

@@ -23,7 +23,7 @@ parser.add_argument('--model-url',
 parser.add_argument('-m',   # 模型名
                     '--model',
                     type=str,
-                    default='glm-4-9b-chat',
+                    default=r'glm-4-9b-chat',
                     help='Model name for the chatbot')
 parser.add_argument('-v',   # 版本
                     '--version',
@@ -52,10 +52,13 @@ args = parser.parse_args()
 if __name__ == "__main__":
     # 读取处理后的文档
     docx_files_dict = read_docx_files(args.data)
-    # 分段
-    docx_files_dict_processed = process_docx_files_2_para(docx_files_dict)
+    # 分句
+    docx_files_dict_processed = process_docx_files_2_sents(docx_files_dict)
+    # 提取年份
+    docx_files_dict_processed = process_docx_files_year(docx_files_dict_processed)
 
     # 设置
+    char_num = 200  # 上下午回顾窗口
     openai_api_key = "EMPTY"
     openai_api_base = args.model_url
     client = OpenAI(
@@ -67,65 +70,74 @@ if __name__ == "__main__":
     output1_dir = os.path.join('..', f'answer_{version}')
     if not os.path.exists(output1_dir):
         os.makedirs(output1_dir)
-    output_csv_path = os.path.join(output1_dir, 'answers_type345-矛盾.csv')
+    output_csv_path = os.path.join(output1_dir, 'answers_type1-常识错误-时间错误.csv')
 
     # 读取Qwen
-    qwen_csv_path = os.path.join(output1_dir, 'pre_type345-矛盾.csv')
+    qwen_csv_path = os.path.join(output1_dir, 'pre_type1-常识错误-不未错误.csv')
     qwen = pd.read_csv(qwen_csv_path)
     # 打开 CSV 文件，准备写入数据
     with open(output_csv_path, 'w', newline='', encoding='utf-8') as csvfile:
         csv_writer = csv.writer(csvfile)
-        csv_writer.writerow(['id', 'sent', 'para_id'])  # 写入 CSV 文件头部
+        csv_writer.writerow(['id', 'sent', 'possible_error_sent', 'sent_id'])  # 写入 CSV 文件头部
 
-        # 抓取矛盾
+        # 抓取时间错误+时间数值缺失
+        errs = ['年', '月', '日', '上午', '下午', '日期']
         for filename, doc in docx_files_dict_processed.items():
             print(f'处理文档：{filename}')
-            if filename.endswith('法') or filename.startswith('平安'):
+            if filename.startswith('平安'):
                 print(f'跳过')
                 continue
-            for i, para in enumerate(doc):
+            for i, sentence in enumerate(doc):
+                if i == 0:  # 跳过基本年份信息
+                    continue
+                found_keyword = False
+                for j, err in enumerate(errs):
+                    if sentence.find(err) != -1:
+                        found_keyword = True
+                        possible_error_sent = sentence
+                        print(f'原句：{possible_error_sent}')
+                        break
+
+                if not found_keyword:
+                    continue
+
+                # 提取上下文
+                context_upper, context_lower = extract_context(i, doc, char_num)
                 # 提取qwen答案
                 try:
-                    qwen_answer = qwen[(qwen['id'] == filename) & (qwen['para_id'] == i)]['result'].values[0]
+                    qwen_answer = qwen[(qwen['id'] == filename) & (qwen['sent_id'] == i)]['result'].values[0]
                 except Exception as e:
                     qwen_answer = ""
                     print(f"qwen无回答: {e}")
-                possible_error_para = para
+
                 prompt = (
-                        f"以下段落可能包含人为设置的矛盾表述。你的任务是判断这个段落中是否存在真正的矛盾，并指出矛盾的具体内容。\n" +
-                        f"段落：{possible_error_para}\n" +
-                        f"段落中可能存在以下三种矛盾类型：\n" +
-                        f"a. 逻辑矛盾：如果两个句子的逻辑推理相互排斥，且在任何合理解释下都无法兼容，则认为存在逻辑矛盾。\n" +
-                        f"b. 时间矛盾：如果两个句子中的时间信息相互冲突，即无法在同一时间框架下成立，则认为存在时间矛盾。\n" +
-                        f"c. 数值矛盾：如果两个句子中的数值信息相互排斥，即在任何合理计算下都无法同时成立，则认为存在数值矛盾。\n" +
-                        f"你的金融助手对于这个段落涉及的金融知识给出了以下补充：" +
+                        f"给定的上下文：" +
+                        f"这篇文档中关于文档基本年份信息的句子为：{doc[0]}\n"
+                        f"上文：{context_upper}\n" +
+                        f"下文：{context_lower}\n" +
+                        f"这段文本来自于研报、招标书或者法律条文，你需要判断以下这个包含时间信息的句子是否存在错误，比如时间常识错误、时间信息不符合上下文语义、时间数值缺失都属于错误：" +
+                        f"句子：{possible_error_sent}\n" +
+                        f"你的金融助手对于句子所涉及的金融知识给出了以下补充或修正：" +
                         f"{qwen_answer}\n" +
-                        f"强调！金融助手的回答只能作为参考，请根据段落含义和你的推理进行判断。\n\n" +
-                        f"请注意，如果段落中的条款看似不同但并不真正矛盾（例如，法律条款可能涉及不同的情境），则不应视为矛盾。\n\n" +
+                        f"强调！金融助手的回答只能作为参考，请根据上下文含义和句子时间信息含义进行判断。\n" +
                         """
-                        请综合上述信息，你给出的回复需要包含以下这三个字段：
-                        1.TrueOrNot: 如果段落中不存在真正的矛盾表述，填写 `True`；如果存在真正的矛盾表述，填写 `False`。\n
-                        2.sentence: 如果存在矛盾，指出与后文存在矛盾的句子，使用 markdown 格式输出该句子中包含矛盾部分的最小粒度分句。\n
-                        3.contradiction: 找到与 `sentence` 存在矛盾的句子，使用 markdown 格式输出该句子中包含矛盾部分的最小粒度分句。\n\n
+                        请综合上述信息，你给出的回复需要包含以下这两个字段：
+                        1.TrueOrNot: 如果句子没有时间错误，字段填为True；如果句子有时间错误，字段填为False
+                        2.sentence: 如果句子没有时间错误，这个字段留空；如果这个句子有时间错误，输出包含错误时间的最小粒度分句，请用 markdown 格式。
                         请按照以下JSON格式来回答：
                         {
                             "TrueOrNot": [
-                                "<你判断的段落表述是否正确><True 或 False>"
+                                "<你判断的该句子为正确或是错误>"
                             ],
-                            "sentence": [
-                                "<原文中包含矛盾部分的最小粒度分句或空字符串>"
-                            ],
-                            "contradiction": [
-                                "<与 sentence 存在矛盾的最小粒度分句或空字符串>"
+                            "error_sentence": [
+                                "<原句中包含错误之处的最小粒度分句>"
                             ]
                         }
-                        注意：如果你认为段落中不存在真正的矛盾，sentence和contradiction应返回空字符串。
                         最后强调一下：你的回复将直接用于javascript的JSON.parse解析，所以注意一定要以标准的JSON格式做回答，不要包含任何其他非JSON内容，否则你将被扣分！！！
                         """
                 )
                 messages = [
-                    {"role": "system",
-                     "content": "作为一位识别金融文本中的漏洞和矛盾的专家，你的任务是判断段落是否含有真正的矛盾表述。请确保在判断时考虑上下文的合理性和一致性。只有明确的矛盾才会被认为是有效矛盾，不包括模糊的表达。"},
+                    {"role": "system", "content": "作为一位识别金融文本中的漏洞和矛盾的专家，您的任务是判断一个包含时间信息的句子是否存在错误，如果存在错误就指出原句中的错误之处。"},
                     {"role": "user", "content": prompt}
                 ]
                 response = client.chat.completions.create(
@@ -139,14 +151,13 @@ if __name__ == "__main__":
                 try:
                     parsed_json = json.loads(clean_json_delimiters(response.choices[0].message.content))
                     TrueOrNot = parsed_json['TrueOrNot'][0]
-                    sentence = parsed_json['sentence'][0]
-                    contradiction = parsed_json['contradiction'][0]
-                    if TrueOrNot == 'Ture':  # 不存在矛盾
+                    error_sentence = parsed_json['error_sentence'][0]
+                    if TrueOrNot == 'Ture':  # 原句正确
                         continue
-                    if TrueOrNot == 'False':  # 存在矛盾
-                        csv_writer.writerow([filename, [sentence, contradiction], i])
-                        answer.append([filename, [sentence, contradiction], i])
-                        print(f'输出：{filename}, [{sentence}, {contradiction}, {i}]')
+                    if TrueOrNot == 'False':  # 原句错误
+                        csv_writer.writerow([filename, error_sentence, possible_error_sent, i])
+                        answer.append([filename, error_sentence, possible_error_sent, i])
+                        print(f'输出：{filename}, {error_sentence}, {possible_error_sent}, {i}')
                 except json.JSONDecodeError as e:
                     print(f"JSON 解析失败: {e}")
                 except IndexError as e:
@@ -159,6 +170,6 @@ if __name__ == "__main__":
     output2_dir = os.path.join('..', f'answer_{version}-副本')
     if not os.path.exists(output2_dir):
         os.makedirs(output2_dir)
-    output_excel_path = os.path.join(output2_dir, 'answers_type345-矛盾-备份.xlsx')
-    answer_df = pd.DataFrame(answer, columns=['id', 'sent', 'para_id'])
+    output_excel_path = os.path.join(output2_dir, 'answers_type1-常识错误-时间错误-备份.xlsx')
+    answer_df = pd.DataFrame(answer, columns=['id', 'sent', 'possible_error_sent', 'sent_id'])
     answer_df.to_excel(output_excel_path, index=False)
