@@ -225,7 +225,7 @@ def process_docx_files_year(docx_files_dict_processed):
             if i > 8:
                 filename_list = ['招标', '定商', '承包', '采购', '货代', '变更', '油', '新能源']
                 if any(filename.find(word) != -1 for word in filename_list):
-                    year_str = '这篇招标文件发布于2024年，投标、开标截止日期在2024年内的是正确的。'
+                    year_str = '这篇招标文件发布于2024年，投标、开标截止日期在2024年范围内的一般是正确的，但也要注意可能的时间颠倒错误。'
                 else:
                     year_str = '空'
                 break

@@ -126,7 +126,7 @@ if __name__ == "__main__":
                         """
                 )
                 messages = [
-                    {"role": "system", "content": "作为一位识别金融文本中的漏洞和矛盾的专家，您的任务是判断一个包含时间信息的句子是否存在错误，如有错误需指出错误之处。"},
+                    {"role": "system", "content": "作为一位识别金融文本中的漏洞和矛盾的专家，您的任务是判断一个包含时间信息的句子是否存在错误，请关注句子中的时间信息，不必考虑句子中的其他潜在错误。"},
                     {"role": "user", "content": prompt}
                 ]
                 response = client.chat.completions.create(
