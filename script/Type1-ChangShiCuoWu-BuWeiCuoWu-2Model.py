@@ -90,14 +90,14 @@ if __name__ == "__main__":
                 continue
             for i, sentence in enumerate(doc):
                 found_keyword = False
-                sentence_list = jieba.lcut(sentence)
-                for j, word in enumerate(sentence_list):
+                word_list = jieba.lcut(sentence)
+                for j, word in enumerate(word_list):
                     for k, err in enumerate(errs):
                         if err == word:
                             found_keyword = True
                             possible_error_sent = sentence
                             print(f'原句：{possible_error_sent}')
-                            temp_list = sentence_list[:]
+                            temp_list = word_list[:]
                             temp_list[j] = errs_antonymy[k]
                             possible_error_sent_antonymy = ''.join(temp_list)
                             print(f'反义：{possible_error_sent_antonymy}')
@@ -120,7 +120,7 @@ if __name__ == "__main__":
                                     f"句子序号2：{possible_error_sent_antonymy}\n" +
                                     f"你的金融助手对于句子所涉及的金融知识给出了以下补充或修正：" +
                                     f"{qwen_answer}\n" +
-                                    f"强调！金融助手的回答只能作为参考，请根据上下文含义和句子逻辑词含义进行判断。\n"
+                                    f"强调！金融助手的回答只能作为参考，请根据上下文含义和句子逻辑词含义进行判断。\n" +
                                     f"示例：若上文提到'承诺要求投标人应承诺近三年内未发生以下情况或失信行为：'，而句子表述为'没有被法院或其他国家行政管理部门判定为违法分包、转包、违规用工。'，由于上文要求的是'未发生以下失信行为'，应修正为'被法院或其他国家行政管理部门判定为违法分包、转包、违规用工。'\n\n" +
                                     """
                                     请综合上述信息，你给出的回复需要包含以下这两个字段：
@@ -152,8 +152,8 @@ if __name__ == "__main__":
                             print(response.choices[0].message.content)
                             try:
                                 parsed_json = json.loads(clean_json_delimiters(response.choices[0].message.content))
-                                num = parsed_json['num'][0]  # 获取num字段的第一个元素
-                                error_sentence = parsed_json['error_sentence'][0]  # 获取error_sentence字段的第一个元素
+                                num = parsed_json['num'][0]
+                                error_sentence = parsed_json['error_sentence'][0]
                                 if int(num) == 1:  # 原句错误
                                     csv_writer.writerow([filename, error_sentence, possible_error_sent, i])
                                     answer.append([filename, error_sentence, possible_error_sent, i])

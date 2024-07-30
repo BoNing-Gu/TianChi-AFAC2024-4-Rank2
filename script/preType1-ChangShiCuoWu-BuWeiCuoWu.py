@@ -87,8 +87,8 @@ if __name__ == "__main__":
                 continue
             for i, sentence in enumerate(doc):
                 found_keyword = False
-                sentence_list = jieba.lcut(sentence)
-                for j, word in enumerate(sentence_list):
+                word_list = jieba.lcut(sentence)
+                for j, word in enumerate(word_list):
                     for k, err in enumerate(errs):
                         if err == word:
                             found_keyword = True
@@ -100,7 +100,7 @@ if __name__ == "__main__":
                     # 提取上下文
                     context_upper, context_lower = extract_context(i, doc, char_num)
                     prompt = (
-                            "这段文本来源于研报、招标书或法律条文：\n" +
+                            f"这段文本来源于研报、招标书或法律条文：\n" +
                             f"上文内容：{context_upper}\n" +
                             f"请检查下面的句子，判断其中是否存在逻辑词的使用错误，并结合上文内容提供相关金融知识以辅助判断。\n" +
                             f"待检查句子：{possible_error_sent}\n" +

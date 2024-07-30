@@ -18,12 +18,12 @@ parser = argparse.ArgumentParser(
     description='Chatbot Interface with Customizable Parameters')
 parser.add_argument('--model-url',
                     type=str,
-                    default='http://localhost:8000/v1',
+                    default='http://localhost:8001/v1',
                     help='Model URL')
 parser.add_argument('-m',   # 模型名
                     '--model',
                     type=str,
-                    default=r'glm-4-9b-chat',
+                    default='Tongyi-Finance-14B-Chat-Int4',
                     help='Model name for the chatbot')
 parser.add_argument('-v',   # 版本
                     '--version',
@@ -37,7 +37,7 @@ parser.add_argument('-d',   # 数据目录路径
                     help='Data Dir')
 parser.add_argument('--temp',
                     type=float,
-                    default=0.1,
+                    default=0.3,
                     help='Temperature for text generation')
 parser.add_argument('--stop-token-ids',
                     type=str,
@@ -70,11 +70,12 @@ if __name__ == "__main__":
     output1_dir = os.path.join('..', f'answer_{version}')
     if not os.path.exists(output1_dir):
         os.makedirs(output1_dir)
-    output_csv_path = os.path.join(output1_dir, 'answers_type1-常识错误-时间错误.csv')
+    output_csv_path = os.path.join(output1_dir, 'pre_type1-常识错误-时间错误.csv')
+
     # 打开 CSV 文件，准备写入数据
     with open(output_csv_path, 'w', newline='', encoding='utf-8') as csvfile:
         csv_writer = csv.writer(csvfile)
-        csv_writer.writerow(['id', 'sent', 'possible_error_sent', 'sent_id'])  # 写入 CSV 文件头部
+        csv_writer.writerow(['id', 'result', 'sent_id'])  # 写入 CSV 文件头部
 
         # 抓取时间错误+时间数值缺失
         errs = ['年', '月', '日', '上午', '下午', '日期']
@@ -103,50 +104,35 @@ if __name__ == "__main__":
                 context_upper, context_lower = extract_context(i, doc, char_num)
 
                 prompt = (
-                        f"给定的上下文：" +
-                        f"这篇文档中关于文档基本年份信息的句子为：{doc[0]}\n"
-                        f"上文：{context_upper}\n" +
-                        f"下文：{context_lower}\n" +
-                        f"请判断以下句子是否存在时间信息错误，包括时间信息不符合上下文语义、时间数值缺失等问题：" +
-                        f"句子：{possible_error_sent}\n" +
-                        """
-                        请综合上述信息，你给出的回复需要包含以下这两个字段：
-                        1.TrueOrNot: 如果句子没有时间错误，字段填为`True`；如果句子有时间错误，字段填为`False`
-                        2.sentence: 如果句子没有时间错误，这个字段留空；如果这个句子有时间错误，输出包含错误时间的最小粒度分句，请用 markdown 格式。
-                        请按照以下JSON格式来回答：
-                        {
-                            "TrueOrNot": [
-                                "<你判断的该句子为正确或是错误>"
-                            ],
-                            "error_sentence": [
-                                "<原句中包含错误之处的最小粒度分句>"
-                            ]
-                        }
-                        最后强调一下：你的回复将直接用于javascript的JSON.parse解析，所以注意一定要以标准的JSON格式做回答，不要包含任何其他非JSON内容，否则你将被扣分！！！
-                        """
+                        "这段文本来源于研报、招标书或法律条文：\n" +
+                        f"这篇文档中关于文档基本年份信息的句子为：{doc[0]}\n" +
+                        f"上文内容：{context_upper}\n" +
+                        f"请检查下面的句子，判断其中是否存在时间信息的使用错误，并结合上文内容提供相关常识或金融知识以辅助判断。\n" +
+                        f"待检查句子：{possible_error_sent}\n" +
+                        f"请逐步分析句子涉及的时间信息，并在句子时间信息表述与常识或上文不符的情况下，提供修正后的金融知识以帮助我理解这个错误。\n" +
+                        "请按以下JSON格式提供回答：\n"
+                        "[\n"
+                        "    \"<待检查句子修正后的金融知识>\"\n"
+                        "]" +
+                        "说明：句子时间信息处在2024年的，除非前后时间颠倒，否则一般是正确的，因为文档主要来自2024年。请一定仔细检查句子是否真正错误，小心误判。" +
+                        "说明：你的推理要完全基于句子的上文内容，只有真正与上文矛盾或者有明显常识错误才认为句子时间信息是错误的，否则默认为正确。"
                 )
                 messages = [
-                    {"role": "system", "content": "作为一位识别金融文本中的漏洞和矛盾的专家，您的任务是判断一个包含时间信息的句子是否存在错误，如有错误需指出错误之处。"},
+                    {"role": "system", "content": "作为金融文本分析助手，你的任务是提供金融相关知识以帮助判断一个句子的时间信息是否符合常识和上文语义。"},
                     {"role": "user", "content": prompt}
                 ]
                 response = client.chat.completions.create(
                     model=args.model,
                     messages=messages,
                     stream=False,
-                    max_tokens=2048,
+                    max_tokens=256,
                     temperature=args.temp
                 )
-                print(response.choices[0].message.content)
                 try:
-                    parsed_json = json.loads(clean_json_delimiters(response.choices[0].message.content))
-                    TrueOrNot = parsed_json['TrueOrNot'][0]
-                    error_sentence = parsed_json['error_sentence'][0]
-                    if TrueOrNot == 'Ture':  # 原句正确
-                        continue
-                    if TrueOrNot == 'False':  # 原句错误
-                        csv_writer.writerow([filename, error_sentence, possible_error_sent, i])
-                        answer.append([filename, error_sentence, possible_error_sent, i])
-                        print(f'输出：{filename}, {error_sentence}, {possible_error_sent}, {i}')
+                    result = response.choices[0].message.content
+                    csv_writer.writerow([filename, result, i])
+                    answer.append([filename, result, i])
+                    print(f'输出：{filename}, {result}, {i}')
                 except json.JSONDecodeError as e:
                     print(f"JSON 解析失败: {e}")
                 except IndexError as e:
@@ -159,6 +145,6 @@ if __name__ == "__main__":
     output2_dir = os.path.join('..', f'answer_{version}-副本')
     if not os.path.exists(output2_dir):
         os.makedirs(output2_dir)
-    output_excel_path = os.path.join(output2_dir, 'answers_type1-常识错误-时间错误-备份.xlsx')
-    answer_df = pd.DataFrame(answer, columns=['id', 'sent', 'possible_error_sent', 'sent_id'])
+    output_excel_path = os.path.join(output2_dir, 'pre_type1-常识错误-时间错误-备份.xlsx')
+    answer_df = pd.DataFrame(answer, columns=['id', 'result', 'sent_id'])
     answer_df.to_excel(output_excel_path, index=False)
