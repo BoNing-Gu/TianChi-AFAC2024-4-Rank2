@@ -24,7 +24,7 @@
 
 方案流程图如下所示：
 
-![flowchart](..\aliyun\flowchart.png)
+![flowchart](.\fig\flowchart.png)
 
 ### 方案细节描述
 
