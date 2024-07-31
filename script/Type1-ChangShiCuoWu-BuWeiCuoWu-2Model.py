@@ -174,5 +174,11 @@ if __name__ == "__main__":
         os.makedirs(output2_dir)
     output_excel_path = os.path.join(output2_dir, 'answers_type1-常识错误-不未错误-备份.xlsx')
     answer_df = pd.DataFrame(answer, columns=['id', 'sent', 'possible_error_sent', 'sent_id'])
+    answer_df = answer_df.drop_duplicates(subset=['id', 'sent_id'], keep='last').reset_index(drop=True)
+    white_list_id = ['新能源']
+    white_list_in = ['用人单位', '信用中国', '未划分标包']
+    answer_df = answer_df[~answer_df['id'].str.contains('|'.join(white_list_id))]
+    answer_df = answer_df[~answer_df['sent'].str.contains('|'.join(white_list_in))]
+    answer_df = answer_df[['id', 'sent']]
     answer_df.to_excel(output_excel_path, index=False)
 

@@ -154,4 +154,8 @@ if __name__ == "__main__":
         os.makedirs(output2_dir)
     output_excel_path = os.path.join(output2_dir, 'answers_type2-数值单位错误-备份.xlsx')
     answer_df = pd.DataFrame(answer, columns=['id', 'sent', 'possible_error_sent', 'sent_id'])
+    white_list_id = []
+    white_list_in = ['天然气', '吨', '国五', '重卡', 'MW', '标段', '结算', '截止日', '流入', 'PMI', '央行']
+    answer_df = answer_df[~answer_df['id'].str.contains('|'.join(white_list_id))]
+    answer_df = answer_df[~answer_df['sent'].str.contains('|'.join(white_list_in))]
     answer_df.to_excel(output_excel_path, index=False)

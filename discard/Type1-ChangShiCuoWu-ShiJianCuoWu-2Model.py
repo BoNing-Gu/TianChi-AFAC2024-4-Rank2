@@ -58,7 +58,7 @@ if __name__ == "__main__":
     docx_files_dict_processed = process_docx_files_year(docx_files_dict_processed)
 
     # 设置
-    char_num = 200  # 上下午回顾窗口
+    char_num = 100  # 上下午回顾窗口
     openai_api_key = "EMPTY"
     openai_api_base = args.model_url
     client = OpenAI(
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     output_csv_path = os.path.join(output1_dir, 'answers_type1-常识错误-时间错误.csv')
 
     # 读取Qwen
-    qwen_csv_path = os.path.join(output1_dir, 'pre_type1-常识错误-不未错误.csv')
+    qwen_csv_path = os.path.join(output1_dir, 'pre_type1-常识错误-时间错误.csv')
     qwen = pd.read_csv(qwen_csv_path)
     # 打开 CSV 文件，准备写入数据
     with open(output_csv_path, 'w', newline='', encoding='utf-8') as csvfile:
@@ -84,21 +84,16 @@ if __name__ == "__main__":
         errs = ['年', '月', '日', '上午', '下午', '日期']
         for filename, doc in docx_files_dict_processed.items():
             print(f'处理文档：{filename}')
-            if filename.startswith('平安'):
-                print(f'跳过')
-                continue
             for i, sentence in enumerate(doc):
                 if i == 0:  # 跳过基本年份信息
                     continue
                 found_keyword = False
-                sentence_list = jieba.lcut(sentence)
-                for j, word in enumerate(sentence_list):
-                    for k, err in enumerate(errs):
-                        if err == word:
-                            found_keyword = True
-                            possible_error_sent = sentence
-                            print(f'原句：{possible_error_sent}')
-                            break
+                for j, err in enumerate(errs):
+                    if sentence.find(err) != -1:
+                        found_keyword = True
+                        possible_error_sent = sentence
+                        print(f'原句：{possible_error_sent}')
+                        break
 
                 if not found_keyword:
                     continue
@@ -113,18 +108,17 @@ if __name__ == "__main__":
                     print(f"qwen无回答: {e}")
 
                 prompt = (
+                        f"请判断以下句子是否存在时间信息错误，包括时间常识错误、时间信息不符合上下文语义、时间数值缺失等问题：" +
+                        f"句子：{possible_error_sent}\n" +
                         f"给定的上下文：" +
-                        f"这篇文档中关于文档基本年份信息的句子为：{doc[0]}\n"
                         f"上文：{context_upper}\n" +
                         f"下文：{context_lower}\n" +
-                        f"这段文本来自于研报、招标书或者法律条文，你需要判断以下这个包含时间信息的句子是否存在错误，比如时间常识错误、时间信息不符合上下文语义、时间数值缺失都属于错误：" +
-                        f"句子：{possible_error_sent}\n" +
-                        f"你的金融助手对于句子所涉及的金融知识给出了以下补充或修正：" +
+                        f"关于文档基本年份信息的句子为：{doc[0]}\n"
+                        f"你的金融助手对于句子所涉及的时间信息给出了以下补充或修正，请结合上下文和句子含义进行推断，只有真正与上下文矛盾或者有明显常识错误才认为句子时间信息是错误的，否则默认为正确。：" +
                         f"{qwen_answer}\n" +
-                        f"强调！金融助手的回答只能作为参考，请根据上下文含义和句子时间信息含义进行判断。\n" +
                         """
                         请综合上述信息，你给出的回复需要包含以下这两个字段：
-                        1.TrueOrNot: 如果句子没有时间错误，字段填为True；如果句子有时间错误，字段填为False
+                        1.TrueOrNot: 如果句子没有时间错误，字段填为`True`；如果句子有时间错误，字段填为`False`
                         2.sentence: 如果句子没有时间错误，这个字段留空；如果这个句子有时间错误，输出包含错误时间的最小粒度分句，请用 markdown 格式。
                         请按照以下JSON格式来回答：
                         {
@@ -135,11 +129,11 @@ if __name__ == "__main__":
                                 "<原句中包含错误之处的最小粒度分句>"
                             ]
                         }
-                        最后强调一下：你的回复将直接用于javascript的JSON.parse解析，所以注意一定要以标准的JSON格式做回答，不要包含任何其他非JSON内容，否则你将被扣分！！！
+                        最后强调一下：你的回复将直接用于javascript的JSON.parse解析，所以注意一定要以标准的JSON格式做回答，不要包含任何其他非JSON内容，否则你将被扣分！！！\n
                         """
                 )
                 messages = [
-                    {"role": "system", "content": "作为一位识别金融文本中的漏洞和矛盾的专家，您的任务是判断一个包含时间信息的句子是否存在错误，如果存在错误就指出原句中的错误之处。"},
+                    {"role": "system", "content": "作为一位识别金融文本中的漏洞和矛盾的专家，您的任务是判断一个包含时间信息的句子是否存在错误，如有错误需指出错误之处。"},
                     {"role": "user", "content": prompt}
                 ]
                 response = client.chat.completions.create(

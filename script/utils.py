@@ -237,6 +237,22 @@ def process_docx_files_year(docx_files_dict_processed):
         print(year_str)
     return docx_files_dict_processed
 
+def process_docx_all_time(docx_files_dict):
+    docx_files_dict_processed= {}
+    for filename, doc in docx_files_dict.items():
+        print(f"文件名: {filename}")
+        print(f"句子数: {len(doc)}")
+        sentence_list = []
+        pattern_list = [r'\d+年', r'\d+月', r'\d+个月', r'\d{4}-\d{2}-\d{2}']
+        for i, sentence in enumerate(doc):
+            for pattern in pattern_list:
+                match = re.search(pattern, sentence.replace(" ", ""))
+                if match:
+                    sentence_list.append(sentence)
+                    break
+        docx_files_dict_processed[filename] = sentence_list
+    return docx_files_dict_processed
+
 def extract_context(i, doc, char_num):
     context_upper = ''  # 提取上文
     for j in range(i - 1, -1, -1):  # 从当前句子的前一句开始向前遍历

@@ -18,12 +18,14 @@ parser = argparse.ArgumentParser(
     description='Chatbot Interface with Customizable Parameters')
 parser.add_argument('--model-url',
                     type=str,
-                    default='http://localhost:8001/v1',
+                    default='http://localhost:8000/v1',
+                    # default='http://localhost:8001/v1',
                     help='Model URL')
 parser.add_argument('-m',   # 模型名
                     '--model',
                     type=str,
-                    default='Tongyi-Finance-14B-Chat-Int4',
+                    default=r'glm-4-9b-chat',
+                    # default='Tongyi-Finance-14B-Chat-Int4',
                     help='Model name for the chatbot')
 parser.add_argument('-v',   # 版本
                     '--version',
@@ -81,21 +83,16 @@ if __name__ == "__main__":
         errs = ['年', '月', '日', '上午', '下午', '日期']
         for filename, doc in docx_files_dict_processed.items():
             print(f'处理文档：{filename}')
-            if filename.startswith('平安'):
-                print(f'跳过')
-                continue
             for i, sentence in enumerate(doc):
                 if i == 0:  # 跳过基本年份信息
                     continue
                 found_keyword = False
-                sentence_list = jieba.lcut(sentence)
-                for j, word in enumerate(sentence_list):
-                    for k, err in enumerate(errs):
-                        if err == word:
-                            found_keyword = True
-                            possible_error_sent = sentence
-                            print(f'原句：{possible_error_sent}')
-                            break
+                for j, err in enumerate(errs):
+                    if sentence.find(err) != -1:
+                        found_keyword = True
+                        possible_error_sent = sentence
+                        print(f'原句：{possible_error_sent}')
+                        break
 
                 if not found_keyword:
                     continue
@@ -115,14 +112,13 @@ if __name__ == "__main__":
                         "[\n"
                         "    \"<识别含有时间信息的待检查句子是否错误，简述推理逻辑>\"\n"
                         "]" +
-                        "说明：如果句子的时间信息为2024年，除非前后时间颠倒，一般是正确的，因为文档主要来自该年。请务必仔细检查句子是否真正错误，避免误判。" +
                         "说明：你的推理应基于句子的上文内容，只有当与上文矛盾或明显违反常识时，才认定句子时间信息错误，否则默认为正确。" +
                         """
                         以下是几个例子：\n
                         例子1：\n
                         待检查句子：“2024年5月22日25时00分（北京时间）”\n
                         [
-                        “一天只有24个小时，句子表述25时00分有错误。”
+                        “现在的确是2024年，但一天只有24个小时，句子表述25时00分有错误。”
                         ]\n
                         例子2：\n
                         待检查句子：“项目经理及区块负责人、高级管理人员还需提供近三年（合同签订时间2023年1月1日至2023年12月31日）参与项目管理咨询（工程项目管理）服务的合同关键页”\n
@@ -132,7 +128,12 @@ if __name__ == "__main__":
                         例子3：\n
                         待检查句子：“合同履行期限：2024-05-20 00:00:00至1925-05-21 00:00:00”\n
                         [
-                        “现在是2024年，合同履行期限不可能早于2024年，有错误。”
+                        “合同履行期限开始于2024年，结束不可能早于2024年，有错误。”
+                        ]\n
+                        例子4：\n
+                        待检查句子：“1月0日至1月5日”\n
+                        [
+                        “不可能存在0日，有错误。”
                         ]\n
                         现在，请对待检查句子进行分析。
                         """
