@@ -40,11 +40,15 @@ if __name__ == '__main__':
                 sent_list = []
                 sent_list.append(sent)
                 item['sents'].append(sent_list)
+            if len(item['sents']) == 0:
+                a_list = []
+                a_list.append("年")
+                item['sents'].append(a_list)
             data.append(item)
 
-    # 将更新后的字典列表写入到新的JSON文件中
     with open(final_json_path, 'w', encoding='utf-8') as f:
-        for item in data:
+        for index, item in enumerate(data):
             json.dump(item, f, ensure_ascii=False)
-            f.write('\n')  # 写入换行符，保证每行一个JSON对象
+            if index < len(data) - 1:
+                f.write('\n')  # 写入换行符，保证每行一个JSON对象
 
