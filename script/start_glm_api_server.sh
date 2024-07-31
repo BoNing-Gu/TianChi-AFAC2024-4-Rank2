@@ -11,6 +11,8 @@ HOST="0.0.0.0"
 GPU_MEMORY_UTILIZATION=1
 MAX_MODEL_LEN=10240
 
+cd /hy-tmp/script/ &&
+conda activate myenv &&
 # Run the API server
 python -m vllm.entrypoints.openai.api_server \
     --model "$MODEL_PATH" \
@@ -20,4 +22,5 @@ python -m vllm.entrypoints.openai.api_server \
     --port "$PORT" \
     --host "$HOST" \
     --gpu-memory-utilization "$GPU_MEMORY_UTILIZATION" \
-    --max-model-len "$MAX_MODEL_LEN"
+    --max-model-len "$MAX_MODEL_LEN" &&
+conda deactivate
